@@ -35,18 +35,6 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
-resource "aws_instance" "app_instance" {
-  ami                   = data.aws_ami.amazon_linux.id
-  instance_type         = var.instance_type
-  subnet_id             = var.public_subnet_id
-  security_groups       = [aws_security_group.app_sg.id]
-  key_name              = var.key_name
-
-  tags = {
-    Name = "clo835-app-server"
-  }
-}
-
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
@@ -59,5 +47,17 @@ data "aws_ami" "amazon_linux" {
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
+  }
+}
+
+resource "aws_instance" "app_instance" {
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.instance_type
+  subnet_id              = var.public_subnet_id
+  security_groups        = [aws_security_group.app_sg.id]
+  key_name               = var.key_name
+
+  tags = {
+    Name = "clo835-app-server"
   }
 }

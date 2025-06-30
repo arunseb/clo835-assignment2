@@ -1,5 +1,5 @@
 variable "aws_region" {
-  description = "AWS region to deploy resources"
+  description = "AWS region"
   type        = string
   default     = "us-east-1"
 }
@@ -11,16 +11,16 @@ variable "instance_type" {
 }
 
 variable "vpc_id" {
-  description = "VPC ID to deploy resources in"
+  description = "VPC ID"
   type        = string
 }
 
 variable "public_subnet_id" {
-  description = "Public subnet ID of the VPC"
+  description = "Public subnet ID"
   type        = string
 }
 
 variable "key_name" {
-  description = "Name of the EC2 key pair for SSH access"
+  description = "Name of the EC2 key pair"
   type        = string
 }
