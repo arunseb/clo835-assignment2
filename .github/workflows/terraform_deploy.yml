@@ -1,75 +1,83 @@
-name: Deploy AWS Infrastructure with Terraform
+name: CI/CD - Full Infrastructure and App Deployment
 
 on:
   push:
     branches:
-      - main # This workflow ONLY runs when you push to the 'main' branch
+      - main
 
 jobs:
-  terraform:
-    name: 'Terraform Apply'
+  deploy:
+    name: Build, Push Images & Deploy Infrastructure
     runs-on: ubuntu-latest
 
     env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # ------------------------
+      # Docker Image Build & Push
+      # ------------------------
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, Tag & Push MySQL Docker Image
+        run: |
+          docker build -t mysql -f Docker_mysql .
+          docker tag mysql:latest ${{ steps.login-ecr.outputs.registry }}/mysql:latest
+          docker push ${{ steps.login-ecr.outputs.registry }}/mysql:latest
+
+      - name: Build, Tag & Push Webapp Docker Image
+        run: |
+          docker build -t webapp -f Dockerfile .
+          docker tag webapp:latest ${{ steps.login-ecr.outputs.registry }}/webapp:latest
+          docker push ${{ steps.login-ecr.outputs.registry }}/webapp:latest
+
+      # ------------------------
+      # Terraform Infra Deployment
+      # ------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.0.0 # Make sure this matches your required_version in provider.tf
+          terraform_version: 1.0.0
 
       - name: Terraform Init
-        id: init
         run: terraform init
 
       - name: Terraform Plan
-        id: plan
         run: |
           terraform plan \
             -var="vpc_id=${{ secrets.VPC_ID }}" \
             -var="public_subnet_id=${{ secrets.PUBLIC_SUBNET_ID }}" \
             -var="key_name=${{ secrets.KEY_NAME }}" \
+            -var="webapp_image=${{ steps.login-ecr.outputs.registry }}/webapp:latest" \
+            -var="mysql_image=${{ steps.login-ecr.outputs.registry }}/mysql:latest" \
             -out=tfplan
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve tfplan
 
-      - name: Get EC2 Instance Public IP
+      - name: Export Terraform Outputs
+        id: tf_outputs
         run: |
-          if [ -f tfplan ]; then
-            echo "EC2_PUBLIC_IP=$(terraform output -state=tfplan -raw ec2_instance_public_ip || terraform output -raw ec2_instance_public_ip)" >> $GITHUB_ENV
-          else
-            echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_instance_public_ip || echo 'No IP (plan only)')" >> $GITHUB_ENV
-          fi
+          echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_instance_public_ip)" >> $GITHUB_ENV
+          echo "ECR_WEBAPP_URL=$(terraform output -raw ecr_webapp_repository_url)" >> $GITHUB_ENV
+          echo "ECR_MYSQL_URL=$(terraform output -raw ecr_mysql_repository_url)" >> $GITHUB_ENV
 
-      - name: Display EC2 Instance Public IP
-        run: echo "EC2 Instance Public IP: ${{ env.EC2_PUBLIC_IP }}"
-
-      - name: Get ECR Webapp Repository URL
+      - name: Display Outputs
         run: |
-          if [ -f tfplan ]; then
-            echo "ECR_WEBAPP_URL=$(terraform output -state=tfplan -raw ecr_webapp_repository_url || terraform output -raw ecr_webapp_repository_url)" >> $GITHUB_ENV
-          else
-            echo "ECR_WEBAPP_URL=$(terraform output -raw ecr_webapp_repository_url || echo 'No URL (plan only)')" >> $GITHUB_ENV
-          fi
-
-      - name: Display ECR Webapp Repository URL
-        run: echo "ECR Webapp Repository URL: ${{ env.ECR_WEBAPP_URL }}"
-
-      - name: Get ECR MySQL Repository URL
-        run: |
-          if [ -f tfplan ]; then
-            echo "ECR_MYSQL_URL=$(terraform output -state=tfplan -raw ecr_mysql_repository_url || terraform output -raw ecr_mysql_repository_url)" >> $GITHUB_ENV
-          else
-            echo "ECR_MYSQL_URL=$(terraform output -raw ecr_mysql_repository_url || echo 'No URL (plan only)')" >> $GITHUB_ENV
-          fi
-
-      - name: Display ECR MySQL Repository URL
-        run: echo "ECR MySQL Repository URL: ${{ env.ECR_MYSQL_URL }}"
+          echo "✅ EC2 Public IP: ${{ env.EC2_PUBLIC_IP }}"
+          echo "✅ ECR Webapp URL: ${{ env.ECR_WEBAPP_URL }}"
+          echo "✅ ECR MySQL URL: ${{ env.ECR_MYSQL_URL }}"
