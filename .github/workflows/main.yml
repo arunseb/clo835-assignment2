@@ -1,0 +1,45 @@
+name: Build and Push Docker images
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0  # Fetch all history for all branches and tags to ensure submodules are up-to-date             
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Create ECR repository if it doesn't exist
+        run: |
+          aws ecr describe-repositories --repository-names assignment \
+          || aws ecr create-repository --repository-name assignment
+
+
+      - name: Build, tag and push MySQL Docker image
+        run: |
+          docker build -t mysql -f web-app/Dockerfile_mysql ./web-app
+          docker tag mysql:latest ${{ steps.login-ecr.outputs.registry }}/assignment:mysql
+          docker push ${{ steps.login-ecr.outputs.registry }}/assignment:mysql
+
+      - name: Build, tag and push Webapp Docker image
+        run: |
+          docker build -t webapp -f web-app/Dockerfile ./web-app
+          docker tag webapp:latest ${{ steps.login-ecr.outputs.registry }}/assignment:webapp
+          docker push ${{ steps.login-ecr.outputs.registry }}/assignment:webapp
