@@ -34,6 +34,10 @@ jobs:
 
       - name: Build, tag and push MySQL Docker image
         run: |
+          echo "Listing current directory contents for debugging:"
+          ls -R                                               
+          echo "--- End of directory listing ---" 
+        
           docker build -t mysql -f web-app/Dockerfile_mysql ./web-app
           docker tag mysql:latest ${{ steps.login-ecr.outputs.registry }}/assignment:mysql
           docker push ${{ steps.login-ecr.outputs.registry }}/assignment:mysql
