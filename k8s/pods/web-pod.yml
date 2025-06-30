@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-pod
+  namespace: web
+  labels:
+    app: employees
+spec:
+  restartPolicy: Always
+  imagePullSecrets:
+    - name: ecr-pull-secret # Ensure this secret exists in the namespace    
+  containers:
+  - name: web
+    image: 164340264957.dkr.ecr.us-east-1.amazonaws.com/assignment:webapp
+    ports:
+    - containerPort: 8080
+    env:
+    - name: DBHOST
+      value: mysql-svc.mysql.svc.cluster.local
+    - name: DBPORT
+      value: "3306"
+    - name: DBUSER
+      value: root
+    - name: DATABASE
+      value: employees
+    - name: DBPWD
+      value: yourpassword
+    - name: APP_COLOR
+      valueFrom:
+        configMapKeyRef:
+          name: app-config
+          key: currentColor

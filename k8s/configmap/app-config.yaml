@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: web
+data:
+  # Available colors; update 'currentColor' to switch
+  availableColors: "blue,green,red"
+  currentColor: "blue"
