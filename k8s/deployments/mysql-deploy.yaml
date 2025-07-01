@@ -19,7 +19,7 @@ spec:
       restartPolicy: Always     
       containers:
       - name: mysql
-        image: 164340264957.dkr.ecr.us-east-1.amazonaws.com/assignment:mysql
+        image: 746936357646.dkr.ecr.us-east-1.amazonaws.com/assignment:mysql
         ports:
         - containerPort: 3306
         env:
