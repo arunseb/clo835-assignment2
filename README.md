@@ -26,6 +26,7 @@ sudo usermod -aG docker ec2-user
 # Start Docker
 echo "Starting Docker..."
 sudo systemctl enable --now docker
+newgrp docker
 
 # Install kubectl
 curl -Lo kubectl https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
