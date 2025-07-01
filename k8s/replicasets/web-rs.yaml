@@ -18,7 +18,7 @@ spec:
       restartPolicy: Always 
       containers:
       - name: web
-        image: 164340264957.dkr.ecr.us-east-1.amazonaws.com/assignment:webapp
+        image: 746936357646.dkr.ecr.us-east-1.amazonaws.com/assignment:webapp
         ports:
         - containerPort: 8080
         env:
